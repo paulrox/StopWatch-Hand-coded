@@ -16,7 +16,7 @@ extern void disableTimer();
 extern void disableAlarm();
 extern void disableSwatch();
 
-extern uint8_t watchset, mode, swatchrun, alarm_exp, timer_exp;
+extern uint8_t watchset, mode, swatchrun, alarm_status, timer_exp, alarm_cycle;
 extern time display_time, watch_time, swatch_time, alarm_time, timer_time;
 
 void SWatchFSMinit(SWatchFSM *me) {
@@ -24,6 +24,8 @@ void SWatchFSMinit(SWatchFSM *me) {
 	watchset = 0;
 	swatchrun = 0;
 	mode = 0;
+	alarm_status = 0;
+	timer_exp = 0;
 	SWatchFSMdispatch(me, ENTRY);
 	me->swatchHistory_ = swatch_stop;
 	me->alarmHistory_ = alarm_sethours;
@@ -199,6 +201,8 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			if ((alarm_time.hours > watch_time.hours) ||
 					((alarm_time.hours == watch_time.hours) &&
 					(alarm_time.minutes > watch_time.minutes))) {
+				alarm_status = 1;
+				alarm_cycle = 200;
 				activateAlarm();
 				tran_(me, alarm_running);
 			}
@@ -239,6 +243,8 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			if ((alarm_time.hours > watch_time.hours) ||
 					((alarm_time.hours == watch_time.hours) &&
 					(alarm_time.minutes > watch_time.minutes))) {
+				alarm_status = 1;
+				alarm_cycle = 200;
 				activateAlarm();
 				tran_(me, alarm_running);
 			}
@@ -270,6 +276,13 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 	/* ALARM_RUNNIG */
 	case alarm_running:
 		switch(sig) {
+		case TICK:
+			if (alarm_cycle == 0) {
+				alarm_time.hours = 0;
+				alarm_time.minutes = 0;
+				tran_(me, alarm_sethours);
+			}
+			break;
 		case ENTRY:
 			mode = 2;
 			display_time.hours = alarm_time.hours;
@@ -278,7 +291,7 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 		case stop_b:
 			alarm_time.hours = 0;
 			alarm_time.minutes = 0;
-			alarm_exp = 0;
+			alarm_status = 0;
 			disableAlarm();
 			tran_(me, alarm_sethours);
 			break;

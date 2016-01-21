@@ -60,13 +60,9 @@
 static void strencode1digit(char *str, int digit);
 static void strencode2digit(char *str, int digit);
 
-void activateAlarm();
-void activateTimer();
-void activateSwatch();
-
 static SWatchFSM watch;
 
-uint8_t mode, alarm_exp, timer_exp, swatchrun, watchset;
+uint8_t mode, alarm_status, timer_exp, swatchrun, watchset, alarm_cycle;
 time display_time, watch_time, swatch_time, alarm_time, timer_time;
 
 /*
@@ -160,8 +156,13 @@ TASK(TaskAlarm)
 {
 	if ((watch_time.hours == alarm_time.hours) &&
 		(watch_time.minutes == alarm_time.minutes)) {
-		alarm_exp = 1;
-		CancelAlarm(AlarmTaskAlarm);
+		if (alarm_cycle != 0) {
+			alarm_cycle--;
+			alarm_status = (alarm_status == 1) ? 2: 1;
+		} else {
+			alarm_status = 0;
+			CancelAlarm(AlarmTaskAlarm);
+		}
 	}
 
 }
@@ -357,13 +358,13 @@ Signal s;
 		ot=display_time.tenths;
 	}
 
-	if (oldalarm != alarm_exp) {
-		if (alarm_exp == 1) {
+	if (oldalarm != alarm_status) {
+		if (alarm_status == 1) {
 			DrawOn(&MyWatchScr[ALARMEXP]);
 		} else {
 			DrawOff(&MyWatchScr[ALARMEXP]);
 		}
-		oldalarm = alarm_exp;
+		oldalarm = alarm_status;
 	}
 
 	if (oldtimer != timer_exp) {
