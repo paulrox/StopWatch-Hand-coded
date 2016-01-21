@@ -197,6 +197,7 @@ int tenths_tot;
 		}
 		t.tenths = tenths_tot;
 	}
+	timer_time = t;
 }
 
 unsigned char IsUpdateTime()

@@ -104,8 +104,8 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			display_time = swatch_time;
 			break;
 		case start_b:
-			activateSwatch();
 			swatchrun = 1;
+			activateSwatch();
 			tran_(me, swatch_running);
 			break;
 		case watch_b:
@@ -316,8 +316,8 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 		case start_b:
 			if ((timer_time.hours * 24 + timer_time.minutes * 60 +
 					timer_time.seconds) > 0) {
-				tran_(me, timer_running);
 				activateTimer();
+				tran_(me, timer_running);
 			}
 			break;
 		case plus_b:
@@ -364,8 +364,8 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 		case start_b:
 			if ((timer_time.hours * 24 + timer_time.minutes * 60 +
 					timer_time.seconds) > 0) {
-				tran_(me, timer_running);
 				activateTimer();
+				tran_(me, timer_running);
 			}
 			break;
 		case plus_b:
@@ -465,6 +465,19 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			timer_time.seconds = 0;
 			timer_time.tenths = 0;
 			timer_exp = 0;
+			tran_(me, timer_sethours);
+			break;
+		case watch_b:
+			me->timerHistory_ = timer_running;
+			tran_(me, watch_showtime);
+			break;
+		case swatch_b:
+			me->timerHistory_ = timer_running;
+			tran_(me, me->swatchHistory_);
+			break;
+		case alarm_b:
+			me->timerHistory_ = timer_running;
+			tran_(me, me->alarmHistory_);
 			break;
 		}
 		break;
