@@ -1,8 +1,10 @@
-/*
- * mypictures.h
- *
- *  Created on: 03/dic/2015
- *      Author: paolosassi
+/**
+ ******************************************************************************
+ * @file mypictures.h
+ * @author Paolo Sassi
+ * @date 22 January 2016
+ * @brief Pictures header file.
+ ******************************************************************************
  */
 
 #ifndef MYPICTURES_H_

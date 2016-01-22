@@ -1,8 +1,10 @@
-/*
- * mypictures.c
- *
- *  Created on: 03/dic/2015
- *      Author: paolosassi
+/**
+ ******************************************************************************
+ * @file mypictures.c
+ * @author Paolo Sassi
+ * @date 22 January 2016
+ * @brief This file contains the application pictures in RGB565 format.
+ ******************************************************************************
  */
 
 const unsigned char bkg[153654]=

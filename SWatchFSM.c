@@ -1,13 +1,15 @@
-/*
- * SWatchFSM.c
- *
- *  Created on: Jan 20, 2016
- *      Author: paolosassi
+/**
+ ******************************************************************************
+ * @file SWatchFSM.c
+ * @author Paolo Sassi
+ * @date 22 January 2016
+ * @brief Contains the nested switch implementation of the FSM.
+ ******************************************************************************
  */
 
-#include"Cplus.h"
+#include "Cplus.h"
 #include "SWatchFSM.h"
-#include "ee.h"
+#include "types.h"
 
 extern void activateAlarm();
 extern void activateSwatch();
@@ -19,24 +21,37 @@ extern void disableSwatch();
 extern uint8_t watchset, mode, swatchrun, alarm_status, timer_exp, alarm_cycle;
 extern time display_time, watch_time, swatch_time, alarm_time, timer_time;
 
+/**
+ * @brief FSM initialization function
+ * @param me: Pointer to the FSM data structure.
+ * @retval None.
+ */
 void SWatchFSMinit(SWatchFSM *me) {
 	me->state_ = watch_showtime;
-	watchset = 0;
-	swatchrun = 0;
-	mode = 0;
-	alarm_status = 0;
-	timer_exp = 0;
-	SWatchFSMdispatch(me, ENTRY);
+	/* initial history states */
 	me->swatchHistory_ = swatch_stop;
 	me->alarmHistory_ = alarm_sethours;
 	me->timerHistory_ = timer_sethours;
 }
 
+/**
+ * @brief FSM transition private function
+ * @param me: Pointer to the FSM data structure.
+ * @param dest: Destination state of the transition.
+ * @retval None.
+ */
 static void tran_(SWatchFSM *me, State dest) {
-	SWatchFSMdispatch(me, EXIT);
+	SWatchFSMdispatch(me, EXIT);	/* trigger the exit action */
 	me->state_ = dest;
-	SWatchFSMdispatch(me, ENTRY);
+	SWatchFSMdispatch(me, ENTRY);	/* trigger the entry action */
 }
+
+/**
+ * @brief Dispatch function of the FSM, implemented using the nested switch.
+ * @param me: Pointer to the FSM data structure.
+ * @param sig: Signal to be dispatched.
+ * @retval None.
+ */
 
 void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 	switch(me->state_) {
@@ -338,7 +353,8 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			tran_(me, timer_sethours);
 			break;
 		case minus_b:
-			timer_time.hours = (timer_time.hours - 1) % 24;
+			timer_time.hours = (timer_time.hours == 0) ? 23 :
+					(timer_time.hours - 1);
 			tran_(me, timer_sethours);
 			break;
 		case timer_b:
@@ -387,7 +403,7 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			break;
 		case minus_b:
 			timer_time.minutes = (timer_time.minutes == 0) ? 59:
-								 (timer_time.minutes - 1) % 60;
+					(timer_time.minutes - 1) % 60;
 			tran_(me, timer_setminutes);
 			break;
 		case timer_b:
@@ -436,7 +452,7 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			break;
 		case minus_b:
 			timer_time.seconds = (timer_time.seconds == 0) ? 59:
-					 	 	 	 timer_time.seconds - 1;
+					timer_time.seconds - 1;
 			tran_(me, timer_setseconds);
 			break;
 		case timer_b:
@@ -497,5 +513,3 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 	default: break;
 	}
 }
-
-

@@ -52,15 +52,11 @@ CPU mySystem {
 			APP_SRC = "mypictures.c";
 			APP_SRC = "Event.c";
 			APP_SRC = "Widget.c";
-			APP_SRC = "WidgetConfig.c";
 			APP_SRC = "SWatchFSM.c";
 			APP_SRC = "STMPE811QTR.c";
-			APP_SRC = "debug.c";
 			COMPILER_TYPE = GNU; 
 			MULTI_STACK = FALSE;
-		};
-
-		
+		};	
 	
 	EE_OPT = "__USE_SYSTICK__";
 
@@ -135,7 +131,7 @@ CPU mySystem {
 	};
  
 	TASK TaskFSM {
-		PRIORITY = 0x03;   /* High priority */
+		PRIORITY = 0x03;   /* Highest priority */
 		AUTOSTART = FALSE;
 		STACK = SHARED;
 		ACTIVATION = 1;    /* only one pending activation */
@@ -175,7 +171,7 @@ CPU mySystem {
 	};
 	
 	TASK TaskLCD {
-		PRIORITY = 0x01;   
+		PRIORITY = 0x01;  /* Low priority */
 		AUTOSTART = FALSE;
 		STACK = SHARED;
 		ACTIVATION = 1;   

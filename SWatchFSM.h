@@ -1,8 +1,11 @@
-/*
- * SWatchFSM.h
- *
- *  Created on: Jan 20, 2016
- *      Author: paolosassi
+/**
+ ******************************************************************************
+ * @file SWatchFSM.h
+ * @author Paolo Sassi
+ * @date 22 January 2016
+ * @brief Contains the definition of the FSM and the definitions of its
+ * signals and states.
+ ******************************************************************************
  */
 
 #ifndef SWATCHFSM_H_
@@ -11,17 +14,20 @@
 #include "Cplus.h"
 #include "stm32f4xx.h"
 
-typedef struct time_ {
-	uint8_t hours;
-	uint8_t minutes;
-	uint8_t seconds;
-	uint8_t	tenths;
-} time;
-
+/**
+ * @addtogroup fsmdef FSM Definition
+ * @{
+ */
+/**
+ * @brief FSM signals.
+ */
 typedef enum {
 	watch_b, swatch_b, alarm_b, timer_b, plus_b, minus_b, start_b, stop_b, ENTRY, EXIT, INIT, TICK, ABSENT
 }Signal;
 
+/**
+ * @brief FSM states.
+ */
 typedef enum {
 	watch_showtime, watch_sethours, watch_setminutes, swatch_stop, swatch_running,
 	swatch_pause, alarm_sethours, alarm_setminutes, alarm_running, timer_sethours,
@@ -34,6 +40,9 @@ CLASS(SWatchFSM)
 	State alarmHistory_;
 	State timerHistory_;
 METHODS
+/**
+ * @}
+ */
 	void SWatchFSMinit(SWatchFSM *me);
 	void SWatchFSMdispatch(SWatchFSM *me, Signal sig);
 END_CLASS

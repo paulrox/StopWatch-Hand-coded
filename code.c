@@ -1,4 +1,13 @@
-/* ###*B*###
+/**
+ ******************************************************************************
+ * @file code.c
+ * @author Paolo Sassi
+ * @date 21 January 2016
+ * @brief Contains the body of all tasks and the global
+ *  variables defined.
+ ******************************************************************************
+ * @attention
+ *
  * ERIKA Enterprise - a tiny RTOS for small microcontrollers
  *
  * Copyright (C) 2002-2013  Evidence Srl
@@ -36,7 +45,8 @@
  * version 2 along with ERIKA Enterprise; if not, write to the
  * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301 USA.
- * ###*E*### */
+ ******************************************************************************
+ */
 
 #include "ee.h"
 #include "ee_irq.h"
@@ -49,175 +59,182 @@
 #include "STMPE811QTR.h"
 #include "mypictures.h"
 #include "Widget.h"
-#include "WidgetConfig.h"
 #include "Touch.h"
 #include "Event.h"
 #include "lcd_add.h"
 #include "fonts.h"
-#include "debug.h"
+#include "types.h"
 #include "SWatchFSM.h"
 
-static void strencode1digit(char *str, int digit);
-static void strencode2digit(char *str, int digit);
+/**
+ * @brief Application mode.
+ */
+uint8_t mode = 0;
+
+/**
+ * @brief Alarm status.
+ * 0: Alarm not set yet.
+ * 1: Alarm set.
+ * 2: Alarm expired.
+ */
+uint8_t alarm_status = 0;
+
+/**
+ * 1 if the timer is expired, 0 otherwise.
+ */
+uint8_t timer_exp = 0;
+uint8_t swatchrun = 0;
+uint8_t watchset = 0;
+uint8_t alarm_cycle = 200; /* 20 seconds */
+
+/* time data structures */
+time display_time;
+time watch_time;
+time swatch_time;
+time alarm_time;
+time timer_time;
 
 static SWatchFSM watch;
 
-uint8_t mode, alarm_status, timer_exp, swatchrun, watchset, alarm_cycle;
-time display_time, watch_time, swatch_time, alarm_time, timer_time;
-
-/*
- * SysTick ISR2
+/** @defgroup utility Utility
+ * @{
  */
-ISR2(systick_handler)
+
+/**
+ * @brief Converts a one digit integer into a string
+ * @param str: pointer to the returning string.
+ * @param digit: integer digit to be converted.
+ * @retval None
+ */
+static void strencode1digit(char *str, int digit)
 {
-	/* count the interrupts, waking up expired alarms */
-	CounterTick(myCounter);
+	str[1] = 0;
+	str[0] = digit + '0';
 }
 
-void activateSwatch() {
+/**
+ * @brief Converts a two digits integer into a string
+ * @param str: pointer to the returning string.
+ * @param digit: integer digits to be converted.
+ * @retval None
+ */
+static void strencode2digit(char *str, int digit)
+{
+	str[2]=0;
+	str[0]=digit/10+'0';
+	str[1]=digit%10+'0';
+}
+
+/**
+ * @brief Activates the Stopwatch task.
+ * @param None
+ * @retval None
+ */
+void activateSwatch()
+{
 	SetRelAlarm(AlarmTaskSwatch, 10, 100);
 }
 
-void activateAlarm() {
+/**
+ * @brief Activates the Alarm task.
+ * @param None
+ * @retval None
+ */
+void activateAlarm()
+{
 	SetRelAlarm(AlarmTaskAlarm, 10, 100);
 }
 
-void activateTimer() {
+/**
+ * @brief Activates the Timer task.
+ * @param None
+ * @retval None
+ */
+void activateTimer()
+{
 	SetRelAlarm(AlarmTaskTimer, 10, 100);
 }
 
-void disableAlarm() {
+/**
+ * @brief Terminates the Alarm task.
+ * @param None
+ * @retval None
+ */
+void disableAlarm()
+{
 	CancelAlarm(AlarmTaskAlarm);
 }
 
-void disableTimer() {
+/**
+ * @brief Terminates the Timer task.
+ * @param None
+ * @retval None
+ */
+void disableTimer()
+{
 	CancelAlarm(AlarmTaskTimer);
 }
 
-void disableSwatch() {
+/**
+ * @brief Terminates the Stopwatch task.
+ * @param None
+ * @retval None
+ *
+ */
+void disableSwatch()
+{
 	CancelAlarm(AlarmTaskSwatch);
 }
 
-/*
- * TASK LCD
+/**
+ * @brief Updates the time on the screen.
+ * @param oh: Old hours.
+ * @param om: Old minutes.
+ * @param os: Old seconds.
+ * @param ot: Old tenths.
+ * @param oldmode: Old application mode.
+ * @retval None
  */
-
-TASK(TaskLCD)
+static void updateTime(uint8_t *oh, uint8_t *om, uint8_t *os, uint8_t *ot,
+		uint8_t oldmode)
 {
-unsigned int px, py;
-TPoint p;
+char tstr[3];
 
-	if (GetTouch_SC_Async(&px, &py)) {
-		p.x = px;
-		p.y = py;
-		OnTouch(MyWatchScr, &p);
+	if (display_time.hours != *oh) {
+		strencode2digit(tstr, (int)display_time.hours);
+		DrawOn(&MyWatchScr[HRSBKG]);
+		WPrint(&MyWatchScr[HRSSTR], tstr);
+		*oh=display_time.hours;
+	}
+	if (display_time.minutes != *om) {
+		strencode2digit(tstr, (int)display_time.minutes);
+		DrawOn(&MyWatchScr[MINBKG]);
+		WPrint(&MyWatchScr[MINSTR], tstr);
+		*om=display_time.minutes;
+	}
+	if (display_time.seconds != *os) {
+		strencode2digit(tstr, (int)display_time.seconds);
+		DrawOn(&MyWatchScr[SECBKG]);
+		WPrint(&MyWatchScr[SECSTR], tstr);
+		*os=display_time.seconds;
+	}
+	if ((display_time.tenths != *ot && mode == SWATCHMODE) ||
+		(oldmode != SWATCHMODE && mode == SWATCHMODE)) {
+		strencode1digit(tstr, (int)display_time.tenths);
+		DrawOn(&MyWatchScr[TTSBKG]);
+		WPrint(&MyWatchScr[TTSSEP], ".");
+		WPrint(&MyWatchScr[TTSSTR], tstr);
+		*ot=display_time.tenths;
 	}
 }
 
-TASK(TaskWatch)
-{
-time t;
-int tenths_tot;
-
-	t = watch_time;
-	t.tenths = (t.tenths + 1) % 10;
-	if (t.tenths == 0) {
-		t.seconds = (t.seconds + 1) % 60;
-		if (t.seconds == 0) {
-			t.minutes = (t.minutes + 1) % 60;
-			if (t.minutes == 0) {
-				t.hours = (t.hours + 1) % 24;
-			}
-		}
-	}
-	watch_time = t;
-}
-
-TASK(TaskSwatch)
-{
-time t;
-	if (swatchrun == 1) {
-		t = swatch_time;
-		t.tenths = (t.tenths + 1) % 10;
-		if (t.tenths == 0) {
-			t.seconds = (t.seconds + 1) % 60;
-			if (t.seconds == 0) {
-				t.minutes = (t.minutes + 1) % 60;
-				if (t.minutes == 0) {
-					t.hours = (t.hours + 1) % 24;
-				}
-			}
-		}
-		swatch_time = t;
-	}
-}
-
-TASK(TaskAlarm)
-{
-	if ((watch_time.hours == alarm_time.hours) &&
-		(watch_time.minutes == alarm_time.minutes)) {
-		if (alarm_cycle != 0) {
-			alarm_cycle--;
-			alarm_status = (alarm_status == 1) ? 2: 1;
-		} else {
-			alarm_status = 0;
-			CancelAlarm(AlarmTaskAlarm);
-		}
-	}
-
-}
-
-TASK(TaskTimer)
-{
-time t;
-int tenths_tot;
-
-	t.hours = 0;
-	t.minutes = 0;
-	t.seconds = 0;
-	t.tenths = 0;
-	tenths_tot = (timer_time.hours * 60 * 60 * 10) + (timer_time.minutes * 60 * 10) +
-			(timer_time.seconds * 10) + timer_time.tenths;
-	tenths_tot = tenths_tot - 1;
-
-	if (tenths_tot == 0) {
-		timer_exp = 1;
-		CancelAlarm(AlarmTaskTimer);
-	} else {
-		while (tenths_tot >= 36000) {
-			tenths_tot -= 36000;
-			t.hours++;
-		}
-		while (tenths_tot >= 600) {
-			tenths_tot -= 600;
-			t.minutes++;
-		}
-		while (tenths_tot >= 10) {
-			tenths_tot -= 10;
-			t.seconds++;
-		}
-		t.tenths = tenths_tot;
-	}
-	timer_time = t;
-}
-
-unsigned char IsUpdateTime()
-{
-unsigned char res;
-static unsigned char oh=0, om=0, os=0;
-
-	if (display_time.hours!=oh || display_time.minutes!=om ||
-			display_time.seconds!= os)
-		res = 1;
-	else
-		res = 0;
-	oh = display_time.hours;
-	om = display_time.minutes;
-	os = display_time.seconds;
-	return res;
-}
-
-void updateScreen(unsigned char om, unsigned char m)
+/**
+ * @brief Updates the screen widgets.
+ * @param om: Old application mode.
+ * @param m: New application mode.
+ * @retval None
+ */
+void updateScreen(uint8_t om, uint8_t m)
 {
 char tstr[3];
 
@@ -287,38 +304,189 @@ char tstr[3];
 		break;
 	}
 }
+/**
+ * @}
+ */
 
-void strencode2digit(char *str, int digit)
+/**
+ * @defgroup isr Interrupt Handler
+ * @{
+ */
+/**
+ * @brief System Tick interrupt handler
+ */
+ISR2(systick_handler)
 {
-	str[2]=0;
-	str[0]=digit/10+'0';
-	str[1]=digit%10+'0';
+	/* count the interrupts, waking up expired alarms */
+	CounterTick(myCounter);
 }
 
-static void strencode1digit(char *str, int digit)
+/**
+ * @}
+ */
+
+/** @defgroup Tasks
+ *  @{
+ */
+/**
+ * 	@brief LDC task body.
+ *
+ * 	This task is periodically activated in order to
+ * 	get the touch events.
+ */
+TASK(TaskLCD)
 {
-	str[1] = 0;
-	str[0] = digit + '0';
+unsigned int px, py;
+TPoint p;
+
+	if (GetTouch_SC_Async(&px, &py)) {
+		p.x = px;
+		p.y = py;
+		OnTouch(MyWatchScr, &p);
+	}
 }
 
+/**
+ * 	@brief Implements the watch mode.
+ *
+ */
+TASK(TaskWatch)
+{
+time t;
+int tenths_tot;
+
+	t = watch_time;
+	t.tenths = (t.tenths + 1) % 10;
+	if (t.tenths == 0) {
+		t.seconds = (t.seconds + 1) % 60;
+		if (t.seconds == 0) {
+			t.minutes = (t.minutes + 1) % 60;
+			if (t.minutes == 0) {
+				t.hours = (t.hours + 1) % 24;
+			}
+		}
+	}
+	watch_time = t;
+}
+
+/**
+ * @brief Implements the Stopwatch mode.
+ *
+ * This task is activated by the FSM when the Stopwatch
+ * is started.
+ */
+TASK(TaskSwatch)
+{
+time t;
+	/* If the Stopwatch is in the running state */
+	if (swatchrun == 1) {
+		t = swatch_time;
+		t.tenths = (t.tenths + 1) % 10;
+		if (t.tenths == 0) {
+			t.seconds = (t.seconds + 1) % 60;
+			if (t.seconds == 0) {
+				t.minutes = (t.minutes + 1) % 60;
+				if (t.minutes == 0) {
+					t.hours = (t.hours + 1) % 24;
+				}
+			}
+		}
+		swatch_time = t;
+	}
+}
+
+/**
+ * @brief Implements the Alarm mode.
+ *
+ * This task is activated by the FSM when the alarm
+ * time is set.
+ */
+TASK(TaskAlarm)
+{
+	if ((watch_time.hours == alarm_time.hours) &&
+		(watch_time.minutes == alarm_time.minutes)) {
+		if (alarm_cycle != 0) {
+			/* In order to make the alarm icon blink when it
+			 * expires, we change the alarm_status value from 1 to 2
+			 * and vice versa for 200 tenths
+			 */
+			alarm_cycle--;
+			alarm_status = (alarm_status == 1) ? 2: 1;
+		} else {
+			alarm_status = 0;
+			CancelAlarm(AlarmTaskAlarm);
+		}
+	}
+}
+
+/**
+ * @brief Implements the Timer mode.
+ *
+ * This task is activated by the FSM when the timer
+ * is started.
+ */
+TASK(TaskTimer)
+{
+time t;
+int tenths_tot;
+
+	t.hours = 0;
+	t.minutes = 0;
+	t.seconds = 0;
+	t.tenths = 0;
+	tenths_tot = (timer_time.hours * 60 * 60 * 10) + (timer_time.minutes
+			* 60 * 10) + (timer_time.seconds * 10) + timer_time.tenths;
+	tenths_tot--;
+
+	if (tenths_tot == 0) {
+		timer_exp = 1;
+		CancelAlarm(AlarmTaskTimer);
+	} else {
+		while (tenths_tot >= 36000) {
+			tenths_tot -= 36000;
+			t.hours++;
+		}
+		while (tenths_tot >= 600) {
+			tenths_tot -= 600;
+			t.minutes++;
+		}
+		while (tenths_tot >= 10) {
+			tenths_tot -= 10;
+			t.seconds++;
+		}
+		t.tenths = tenths_tot;
+	}
+	timer_time = t;
+}
+
+/**
+ * @brief Implements the State Machine of the application
+ *
+ * This task checks whether an event has occurred and dispatches
+ * the right signal to the FSM.
+ */
 TASK(TaskFSM)
 {
-unsigned char i;
-static int oldmode=8;
-static int oldswatchrun = 10;
-static int oldwatchset = 2;
-static int oldalarm = 2;
-static int oldtimer = 2;
-static unsigned char oh=99, om=99, os=99, ot=99;
-char tstr[3];
+static uint8_t oldmode=8;
+static uint8_t oldswatchrun = 10;
+static uint8_t oldwatchset = 2;
+static uint8_t oldalarm = 3;
+static uint8_t oldtimer = 2;
+static uint8_t oh=99, om=99, os=99, ot=99;
 Signal s;
 
+	/* We always dispatch the TICK event in order to
+	 * update the screen digits
+	 */
 	s = TICK;
-
 	SWatchFSMdispatch(&watch, s);
 
+	/* If no button presses are detected, we dispatch
+	 * and empty event.
+	 */
 	s = ABSENT;
 
+	/* Checks the button presses */
 	if (IsEvent(WATCHBPRESS))	s = watch_b;
 	if (IsEvent(SWATCHBPRESS))	s = swatch_b;
 	if (IsEvent(ALARMBPRESS))	s = alarm_b;
@@ -332,32 +500,10 @@ Signal s;
 
 	ClearEvents();
 
-	if (display_time.hours!=oh) {
-		strencode2digit(tstr, (int)display_time.hours);
-		DrawOn(&MyWatchScr[HRSBKG]);
-		WPrint(&MyWatchScr[HRSSTR], tstr);
-		oh=display_time.hours;
-	}
-	if (display_time.minutes!=om) {
-		strencode2digit(tstr, (int)display_time.minutes);
-		DrawOn(&MyWatchScr[MINBKG]);
-		WPrint(&MyWatchScr[MINSTR], tstr);
-		om=display_time.minutes;
-	}
-	if (display_time.seconds!= os) {
-		strencode2digit(tstr, (int)display_time.seconds);
-		DrawOn(&MyWatchScr[SECBKG]);
-		WPrint(&MyWatchScr[SECSTR], tstr);
-		os=display_time.seconds;
-	}
-	if ((display_time.tenths != ot && mode == SWATCHMODE) || (oldmode != SWATCHMODE && mode == SWATCHMODE)) {
-		strencode1digit(tstr, (int)display_time.tenths);
-		DrawOn(&MyWatchScr[TTSBKG]);
-		WPrint(&MyWatchScr[TTSSEP], ".");
-		WPrint(&MyWatchScr[TTSSTR], tstr);
-		ot=display_time.tenths;
-	}
+	/* Updates the displayed time */
+	updateTime(&oh, &om, &os, &ot, oldmode);
 
+	/* Updates alarm and timer status */
 	if (oldalarm != alarm_status) {
 		if (alarm_status == 1) {
 			DrawOn(&MyWatchScr[ALARMEXP]);
@@ -366,7 +512,6 @@ Signal s;
 		}
 		oldalarm = alarm_status;
 	}
-
 	if (oldtimer != timer_exp) {
 			if (timer_exp == 1) {
 				DrawOn(&MyWatchScr[TIMEREXP]);
@@ -374,54 +519,49 @@ Signal s;
 				DrawOff(&MyWatchScr[TIMEREXP]);
 			}
 			oldtimer = timer_exp;
-		}
+	}
 
-	if (oldmode != mode || oldswatchrun != swatchrun || oldwatchset != watchset) {
-	updateScreen(oldmode, mode);
-	oldmode = mode;
-	oldswatchrun = swatchrun;
-	oldwatchset = watchset;
+	/* Checks if the application mode has changed or not */
+	if (oldmode != mode || oldswatchrun != swatchrun ||
+			oldwatchset != watchset) {
+		updateScreen(oldmode, mode);
+		oldmode = mode;
+		oldswatchrun = swatchrun;
+		oldwatchset = watchset;
 	}
 }
 
-/*
- * MAIN TASK
+/**
+ * @brief Main task of the application
+ * @param None
+ * @retval None This function should never return.
  */
 int main(void)
 {
-
+	/* Initializes the system */
 	SystemInit();
-	/*Initializes Erika related stuffs*/
 	EE_system_init();
-
-	/* Initialize state machine */
-
-	SWatchFSMinit(&watch);
-
-	/*Initialize systick */
 	EE_systick_set_period(MILLISECONDS_TO_TICKS(1, SystemCoreClock));
 	EE_systick_enable_int();
 	EE_systick_start();
 
 	/* Initializes LCD and touchscreen */
 	IOE_Config();
-	/* Initialize the LCD */
 	STM32f4_Discovery_LCD_Init();
-
 	InitTouch(-0.0853, 0.0665, -331, 15);
-
-	/* Draw the background */
 	DrawInit(MyWatchScr);
 
-	/* Program cyclic alarms which will fire after an initial offset,
-	 * and after that periodically
-	 * */
+	/* Initializes the FSM */
+	SWatchFSMinit(&watch);
+
+	/* Initial task set */
 	SetRelAlarm(AlarmTaskLCD, 10, 100);
 	SetRelAlarm(AlarmTaskFSM, 10, 100);
 	SetRelAlarm(AlarmTaskWatch, 10, 100);
 
-  /* Forever loop: background activities (if any) should go here */
+	/* Forever loop: background activities (if any) should go here */
 	for (;;) { }
 }
-
-
+/**
+ * @}
+ */
