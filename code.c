@@ -62,7 +62,6 @@
 #include "Touch.h"
 #include "Event.h"
 #include "lcd_add.h"
-#include "fonts.h"
 #include "types.h"
 #include "SWatchFSM.h"
 
@@ -555,7 +554,7 @@ int main(void)
 	SWatchFSMinit(&watch);
 
 	/* Initial task set */
-	SetRelAlarm(AlarmTaskLCD, 10, 100);
+	SetRelAlarm(AlarmTaskLCD, 10, 150);
 	SetRelAlarm(AlarmTaskFSM, 10, 100);
 	SetRelAlarm(AlarmTaskWatch, 10, 100);
 
