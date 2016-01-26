@@ -65,7 +65,7 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			watchset = 1;
 			tran_(me, watch_sethours);
 			break;
-		case swatch_b: tran_(me, me->swatchHistory_); break;
+		case swatch_b:tran_(me, me->swatchHistory_); break;
 		case alarm_b: tran_(me, me->alarmHistory_); break;
 		case timer_b: tran_(me, me->timerHistory_); break;
 		default: break;
@@ -80,13 +80,14 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			tran_(me, watch_sethours);
 			break;
 		case minus_b:
-			watch_time.hours = (watch_time.hours - 1) % 24;
+			watch_time.hours = (watch_time.hours == 0) ? 23 :
+					watch_time.hours - 1;
 			tran_(me, watch_sethours);
 			break;
-		case watch_b: tran_(me, watch_setminutes); break;
-		case swatch_b: tran_(me, me->swatchHistory_); break;
-		case alarm_b: tran_(me, me->alarmHistory_); break;
-		case timer_b: tran_(me, me->timerHistory_); break;
+		case watch_b:	tran_(me, watch_setminutes); break;
+		case swatch_b:	watchset = 0; tran_(me, me->swatchHistory_); break;
+		case alarm_b:	watchset = 0; tran_(me, me->alarmHistory_); break;
+		case timer_b:	watchset = 0; tran_(me, me->timerHistory_); break;
 		default: break;
 		}
 		break;
@@ -98,7 +99,8 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			tran_(me, watch_setminutes);
 			break;
 		case minus_b:
-			watch_time.minutes = (watch_time.minutes - 1) % 60;
+			watch_time.minutes = (watch_time.minutes == 0) ? 59 :
+					watch_time.minutes - 1;
 			tran_(me, watch_setminutes);
 			break;
 		case watch_b:
@@ -107,9 +109,9 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			watchset = 0;
 			tran_(me, watch_showtime);
 			break;
-		case swatch_b: tran_(me, me->swatchHistory_); break;
-		case alarm_b: tran_(me, me->alarmHistory_); break;
-		case timer_b: tran_(me, me->timerHistory_); break;
+		case swatch_b:	watchset = 0; tran_(me, me->swatchHistory_); break;
+		case alarm_b: 	watchset = 0; tran_(me, me->alarmHistory_); break;
+		case timer_b: 	watchset = 0; tran_(me, me->timerHistory_); break;
 		default: break;
 		}
 		break;
@@ -228,7 +230,7 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			break;
 		case minus_b:
 			alarm_time.hours = (alarm_time.hours == 0) ? 23 :
-								alarm_time.hours - 1;
+					alarm_time.hours - 1;
 			tran_(me, alarm_sethours);
 			break;
 		case watch_b:
@@ -270,7 +272,7 @@ void SWatchFSMdispatch(SWatchFSM *me, Signal sig) {
 			break;
 		case minus_b:
 			alarm_time.minutes = (alarm_time.minutes == 0) ? 59 :
-								  alarm_time.minutes - 1;
+					alarm_time.minutes - 1;
 			tran_(me, alarm_setminutes);
 			break;
 		case watch_b:

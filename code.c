@@ -61,7 +61,6 @@
 #include "Widget.h"
 #include "Touch.h"
 #include "Event.h"
-#include "lcd_add.h"
 #include "types.h"
 #include "SWatchFSM.h"
 
@@ -245,8 +244,10 @@ char tstr[3];
 		DrawOff(&MyWatchScr[BMINUS]);
 		break;
 	case SWATCHMODE:
-		DrawOff(&MyWatchScr[BSWATCH]);
-		DrawOff(&MyWatchScr[BSTART]);
+		if (om != m) {
+			DrawOff(&MyWatchScr[BSWATCH]);
+			DrawOff(&MyWatchScr[BSTART]);
+		}
 		DrawOff(&MyWatchScr[BSTOP]);
 		break;
 	case ALARMMODE : case TIMERMODE:
@@ -278,8 +279,10 @@ char tstr[3];
 		}
 		break;
 	case SWATCHMODE:
-		DrawOn(&MyWatchScr[BSWATCH]);
-		DrawOn(&MyWatchScr[BSTART]);
+		if (om != m) {
+			DrawOn(&MyWatchScr[BSWATCH]);
+			DrawOn(&MyWatchScr[BSTART]);
+		}
 		if (swatchrun <= 1) {
 			DrawOn(&MyWatchScr[BSTOP]);
 		} else {
@@ -512,12 +515,12 @@ Signal s;
 		oldalarm = alarm_status;
 	}
 	if (oldtimer != timer_exp) {
-			if (timer_exp == 1) {
-				DrawOn(&MyWatchScr[TIMEREXP]);
-			} else {
-				DrawOff(&MyWatchScr[TIMEREXP]);
-			}
-			oldtimer = timer_exp;
+		if (timer_exp == 1) {
+			DrawOn(&MyWatchScr[TIMEREXP]);
+		} else {
+			DrawOff(&MyWatchScr[TIMEREXP]);
+		}
+		oldtimer = timer_exp;
 	}
 
 	/* Checks if the application mode has changed or not */
