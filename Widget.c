@@ -98,7 +98,7 @@ Image backg = {
 };
 
 /**
- * @brief This array contains alle the widgets defined for
+ * @brief This array contains all the widgets defined for
  * the application.
  */
 Widget MyWatchScr[NUMWIDGETS] = {
